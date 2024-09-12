@@ -12,6 +12,7 @@ app.config['TESTING'] = True
 
 with app.app_context():
     db.drop_all()
+    print(db)
     db.create_all()
 
 
@@ -42,8 +43,14 @@ class CupcakeViewsTestCase(unittest.TestCase):
             db.session.add(cupcake)
             db.session.commit()
 
-        self.cupcake = cupcake
-        print(cupcake.id)
+            self.cupcake = cupcake
+            """Strange behavior here:
+                self.cupcake.id will not exist without explicitly requesting self.cupcake.id inside with app.app_context()
+                the solution used is to have self.cupcake.id = cupcake.id
+                alternatively and strangely pint(self.cupcake.id) after self.cupcake = cupcake will also let any call of self.cupcake.id work after the print
+            """
+            self.cupcake.id = cupcake.id
+          
        
         
 
@@ -52,25 +59,27 @@ class CupcakeViewsTestCase(unittest.TestCase):
         with app.app_context():
             db.session.rollback()
 
+
     def test_list_cupcakes(self):
         with app.test_client() as client:
             resp = client.get("/api/cupcakes")
-
+            print("test = ", self.cupcake.id)
             self.assertEqual(resp.status_code, 200)
 
             data = resp.json
-            self.assertEqual(data, {
-                "cupcakes": [
-                    {
-                        "id": self.cupcake.id,
-                        "flavor": "TestFlavor",
-                        "size": "TestSize",
-                        "rating": 5,
-                        "image": "http://test.com/cupcake.jpg"
-                    }
-                ]
-            })
-    """
+            with app.app_context():
+                self.assertEqual(data, {
+                    "cupcakes": [
+                        {
+                            "id": self.cupcake.id,
+                            "flavor": "TestFlavor",
+                            "size": "TestSize",
+                            "rating": 5,
+                            "image": "http://test.com/cupcake.jpg"
+                        }
+                    ]
+                })
+
     def test_get_cupcake(self):
         with app.test_client() as client:
 
@@ -165,4 +174,4 @@ class CupcakeViewsTestCase(unittest.TestCase):
             resp = client.delete(url)
 
             self.assertEqual(resp.status_code, 404)
-"""
+
